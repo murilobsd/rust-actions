@@ -136,6 +136,7 @@ jobs:
 
       - uses: codecov/codecov-action@13ce06bfc6bbe3ecf90edbbf1bc32fe5978ca1d3 # v5.3.1
         with:
+          slug: murilobsd/rust-actions
           files: ${CARGO_TARGET_DIR}/coverage.lcov
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
