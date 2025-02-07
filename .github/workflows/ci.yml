@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  changed-files:
+    name: Changed Files
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - uses: tj-actions/changed-files@d6e91a2266cdb9d62096cebf1e8546899c6aa18f # v45.0.6
+        id: changed-files-rust
+        with:
+          files: |
+            crates/**
+            migrations/**
+            src/**
+            build.rs
+            Cargo.lock
+            Cargo.toml
+            rust-toolchain.toml
+
+      - uses: tj-actions/changed-files@d6e91a2266cdb9d62096cebf1e8546899c6aa18f # v45.0.6
+        id: changed-files-rust-lockfile
+        with:
+          files: Cargo.lock
+
+    outputs:
+      non-js: ${{ steps.changed-files-non-js.outputs.any_modified }}
+      rust: ${{ steps.changed-files-rust.outputs.any_modified }}
+      rust-lockfile: ${{ steps.changed-files-rust-lockfile.outputs.any_modified }}
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-24.04
+    needs: changed-files
+    if: needs.changed-files.outputs.rust == 'true'
+
+    env:
+      RUSTFLAGS: "-D warnings"
+      RUSTDOCFLAGS: "-D warnings"
+
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - run: rustup component add rustfmt
+      - run: rustup component add clippy
+
+      - uses: Swatinem/rust-cache@f0deed1e0edfc6a9be95417288c0e1099b1eeec3 # v2.7.7
+
+      - run: cargo fmt --check --all
+      - run: cargo clippy --all-targets --all-features --workspace
+      - run: cargo doc --no-deps --document-private-items
+
